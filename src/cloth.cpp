@@ -32,7 +32,63 @@ Cloth::~Cloth() {
 
 void Cloth::buildGrid() {
   // TODO (Part 1): Build a grid of masses and springs.
+  for (int i = 0; i < num_height_points; i++) {
+    for (int j = 0; j < num_width_points; j++) {
+      vector<int> coordinate = {j, i};
+      if (orientation == HORIZONTAL) {
+        Vector3D position(width / num_width_points * j, 1, height / num_height_points * i);
+        PointMass point_mass(position, find(pinned.begin(), pinned.end(), coordinate) != pinned.end());
+        point_masses.emplace_back(point_mass);
+      }
+      else if (orientation == VERTICAL) {
+        Vector3D position(width / num_width_points * j, height / num_height_points * i, ((double) rand() / RAND_MAX - 0.5) / 500);
+        PointMass point_mass(position, find(pinned.begin(), pinned.end(), coordinate) != pinned.end());
+        point_masses.emplace_back(point_mass);
+      }
+    }
+  }
 
+  for (int i = 0; i < num_height_points; i++) {
+    for (int j = 0; j < num_width_points; j++) {
+      int index = i * num_width_points + j;
+
+      if (j >= 1) {
+        int left_index = i * num_width_points + (j - 1);
+        Spring spring(&point_masses[index], &point_masses[left_index], STRUCTURAL);
+        springs.emplace_back(spring);
+      }
+
+      if (i >= 1) {
+        int up_index = (i - 1) * num_width_points + j;
+        Spring spring(&point_masses[index], &point_masses[up_index], STRUCTURAL);
+        springs.emplace_back(spring);
+      }
+
+      if (i >= 1 && j >= 1) {
+        int top_left_index = (i - 1) * num_width_points + (j - 1);
+        Spring spring(&point_masses[index], &point_masses[top_left_index] , SHEARING);
+        springs.emplace_back(spring);
+      }
+
+      if (i >= 1 && j < num_width_points - 1) {
+        int top_right_index = (i - 1) * num_width_points + (j + 1);
+        Spring spring(&point_masses[index], &point_masses[top_right_index] , SHEARING);
+        springs.emplace_back(spring);
+      }
+
+      if (i >= 2) {
+        int up_two_index = (i - 2) * num_width_points + j;
+        Spring spring(&point_masses[index], &point_masses[up_two_index] , BENDING);
+        springs.emplace_back(spring);
+      }
+
+      if (j >= 2) {
+        int left_two_index = i * num_width_points + (j - 2);
+        Spring spring(&point_masses[index], &point_masses[left_two_index] , BENDING);
+        springs.emplace_back(spring);
+      }
+    }
+  }
 }
 
 void Cloth::simulate(double frames_per_sec, double simulation_steps, ClothParameters *cp,
@@ -41,20 +97,102 @@ void Cloth::simulate(double frames_per_sec, double simulation_steps, ClothParame
   double mass = width * height * cp->density / num_width_points / num_height_points;
   double delta_t = 1.0f / frames_per_sec / simulation_steps;
 
+  for (int i = 0; i < num_height_points; i++) {
+    for (int j = 0; j < num_width_points; j++) {
+      int index = i * num_width_points + j;
+      point_masses[index].forces = Vector3D(0,0,0);
+    }
+  }
+
   // TODO (Part 2): Compute total force acting on each point mass.
+
+  Vector3D external_force(0,0,0);
+  for (int i = 0; i < external_accelerations.size(); i++) {
+    external_force += external_accelerations[i] * mass;
+  }
+  for (int i = 0; i < point_masses.size(); i++) {
+    point_masses[i].forces = external_force;
+  }
+
+  for (int i = 0; i < springs.size(); i++) {
+    Spring spring = springs[i];
+    Vector3D direction = spring.pm_a -> position - spring.pm_b -> position;
+    direction.normalize();
+    double distance = (spring.pm_a -> position - spring.pm_b -> position).norm();
+
+    if (cp -> enable_structural_constraints && spring.spring_type == STRUCTURAL) {
+          Vector3D spring_force = direction * cp -> ks * (distance - spring.rest_length);
+          spring.pm_a -> forces -= spring_force;
+          spring.pm_b -> forces += spring_force;
+    }
+
+    if (cp -> enable_shearing_constraints && spring.spring_type == SHEARING) {
+          Vector3D spring_force = direction * cp -> ks * (distance - spring.rest_length);
+          spring.pm_a -> forces -= spring_force;
+          spring.pm_b -> forces += spring_force;
+    }
+
+    if (cp -> enable_bending_constraints && spring.spring_type == BENDING) {
+        Vector3D spring_force = direction * 0.2 * cp -> ks * (distance - spring.rest_length);
+        spring.pm_a -> forces -= spring_force;
+        spring.pm_b -> forces += spring_force;
+    }
+  }
 
 
   // TODO (Part 2): Use Verlet integration to compute new point mass positions
 
+  for (int i = 0; i < point_masses.size(); i++) {
+    PointMass* point_mass = &point_masses[i];
+
+    if (!point_mass -> pinned) {
+      Vector3D current_position = point_mass -> position;
+      double d = cp -> damping / 100.;
+      Vector3D a = point_mass -> forces / mass;
+      point_mass -> position += (1 - d) * (point_mass -> position - point_mass -> last_position) + (a * delta_t * delta_t);
+      point_mass-> last_position = current_position;
+    }
+    // point_mass -> forces = Vector3D(0);
+  }
+  
 
   // TODO (Part 4): Handle self-collisions.
 
 
   // TODO (Part 3): Handle collisions with other primitives.
+  for (int i = 0; i < (*collision_objects).size(); i++) {
+    CollisionObject* object = (*collision_objects)[i];
+    for (int j = 0; j < point_masses.size(); j++) {
+      PointMass* point_mass = &point_masses[j];
+       object -> collide(*point_mass);
+    }
+  }
 
 
   // TODO (Part 2): Constrain the changes to be such that the spring does not change
   // in length more than 10% per timestep [Provot 1995].
+  for (int i = 0; i < springs.size(); i++) {
+    Spring spring = springs[i];
+    Vector3D direction = spring.pm_a -> position - spring.pm_b -> position;
+    direction.normalize();
+    double distance = (spring.pm_a -> position - spring.pm_b -> position).norm();
+    
+    if (distance > 1.1 * spring.rest_length) {
+      if (!spring.pm_a -> pinned && !spring.pm_b -> pinned) {
+        spring.pm_a -> position -= 0.5 * direction * (distance - 1.1 * spring.rest_length);
+        spring.pm_b -> position += 0.5 * direction * (distance - 1.1 * spring.rest_length);
+      } 
+  
+      else if (spring.pm_a -> pinned && !spring.pm_b -> pinned) {
+        spring.pm_b -> position += direction * (distance - 1.1 * spring.rest_length);
+      }
+
+      else if (!spring.pm_a -> pinned && spring.pm_b -> pinned) {
+        spring.pm_a -> position -= direction * (distance - 1.1 * spring.rest_length);
+      } 
+    }
+    
+  }
 
 }
 
