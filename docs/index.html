@@ -25,16 +25,227 @@
 
 <h1 align="middle">CS 184: Computer Graphics and Imaging, Spring 2017</h1>
 <h1 align="middle">Project 4: Cloth Simulator</h1>
-<h2 align="middle">YOUR NAME, CS184-??</h2>
+<h2 align="middle">I-Lun Tsai, Hsuan-Hao Wang, CS184-p4-clothsim-sp23-cs284_project4</h2>
 
 <br><br>
 
 <div>
 
 <h2 align="middle">Overview</h2>
-<p>Give a high-level overview of what you implemented in this project. Think about what you've built as a whole. Share your thoughts on what interesting things you've learned from completing the project.</p>
+<p>In this project, we created a cloth simulator and implemented several shaders to make the rendering look more realistic. The cloth is modeled as a 2D grid of point masses connected by springs, each with different constraints such as structural, shearing, and bending. The movement of each point mass is determined by accumulating external forces acting on each mass, such as  gravity, and spring forces governed by Hooke’s Law. During each step of the simulation, we apply Verlet integration while incorporating energy dissipation to update the position of each point mass and keep the system stable. We also constrained the distance between point masses to be no more than 10% greater than the spring’s rest length to prevent unreasonable deformation. For interacting with other objects in the scene, we also addressed collisions with planes, spheres and the cloth itself to prevent the cloth from passing through solid objects. In the last part of the project, we implemented various shaders, including diffuse shading, Blinn-Phong shading, texture mapping, bump and displacement mapping, and mirror shading.</p>
 
 <h2 align="middle">Part I: Masses and springs</h2>
+<p>
+  The cloth is modeled as a 2D grid of point masses connected by structural, shearing, and bending springs. Structural and bending springs align along the horizontal and vertical axes of the grid while shearing springs are stretched diagonally. We apply Hooke's law to accumulate the forces applied on each point masses by the eight springs that connect it to neighboring point masses. In our implementation, we use a 1D vector in row-major order to store each point mass. We offer two variations of positioning, horizontal or vertical, for the cloth’s initialization in our scene. This is achieved by varying the point mass positions over the xz or xy plane. By querying the pinned vector, we fix the position of some of the point masses. After creating all the point masses, we iterate through all point masses and add the three types of springs connecting them to their neighboring points following the rules of each constraint.
+</p>
+<div align="middle">
+  <table style="width:100%">
+    <tr align="center">
+      <td>
+        <img src="https://foil-valley-a41.notion.site/image/https%3A%2F%2Fs3-us-west-2.amazonaws.com%2Fsecure.notion-static.com%2Fdcc1afe6-3503-4d63-a12b-357b3ffb5a6c%2FUntitled.png?id=b4726ec8-c626-4a5a-96b3-97a31fb2476f&table=block&spaceId=ff67df48-404c-4889-a983-fd4c22d51181&width=2000&userId=&cache=v2" align="middle" width="400px"/>
+        <figcaption>Structural and bending springs (no shearing)</figcaption>
+      </td>
+      <td>
+        <img src="https://foil-valley-a41.notion.site/image/https%3A%2F%2Fs3-us-west-2.amazonaws.com%2Fsecure.notion-static.com%2F448252f4-6073-4483-8a93-28e0b21077cf%2FUntitled.png?id=cfffa88c-f7ad-44c4-880a-ba75fa4c25c8&table=block&spaceId=ff67df48-404c-4889-a983-fd4c22d51181&width=2000&userId=&cache=v2" align="middle" width="400px"/>
+        <figcaption>Only shearing springs</figcaption>
+      </td>
+      <td>
+        <img src="https://foil-valley-a41.notion.site/image/https%3A%2F%2Fs3-us-west-2.amazonaws.com%2Fsecure.notion-static.com%2F689c557e-e1ff-49b5-97fc-407379463c93%2FUntitled.png?id=98bfc583-cb02-43ed-ad48-5837cf8e6392&table=block&spaceId=ff67df48-404c-4889-a983-fd4c22d51181&width=2000&userId=&cache=v2" align="middle" width="400px"/>
+        <figcaption>All springs (structural, shearing, and bending)</figcaption>
+      </td>
+  </table>
+</div>
+
+<h2 align="middle">Part II: Simulation via numerical integration</h2>
+<p>
+  We use Verlet Integration method to update the point mass’ position for each time step in the simulation. We first accumulate both external forces and spring forces applied on each point mass. External forces were calculated using F = ma while spring forces were computed using Hooke's law. We introduced the constraint that springs can only extend within 10% of their rest length while modeling energy dissipation with a damping factor to maintain the stability of the simulation. Below, we discuss how each of parameters, spring constant, density, and damping factor affects how the cloth behaves in simulation.
+</p>
+<h4>
+  Spring Constant
+</h4>
+<p>
+  We can alter the stiffness of the spring by modifying the spring constant, which controls the elasticity of the spring. Higher spring constants mean that the spring, and thus the simulated cloth, is more stiff, less stretchy, has less wrinkles in its final state, and doesn’t bounce as much when colliding with other objects in the scene. All experiments are conducted in with the same gravitational field.
+  The left one below shows the demonstration when spring constant = 5000 (N/m), the right one is 500 (N/m).
+</p>
+<div align="middle">
+  <table style="width:100%">
+    <tr align="center">
+      <td>
+        <video loop src="https://file.notion.so/f/s/3582d334-92bd-4f8a-9c00-86d107a48daa/springconstant5000.mov?id=6062f976-30d9-4326-a980-8f930c546e0d&table=block&spaceId=ff67df48-404c-4889-a983-fd4c22d51181&expirationTimestamp=1681255423075&signature=7yuKdZ-ARmiWcKSJE7XxDFoHMNTkwjYX1yltqzsD8DI" align="middle" width="400px"/ autoplay muted>
+          <!-- TODO: Fuck! this is not showing -->
+        <figcaption>Spring Constant = 5000 (N/m)</figcaption>
+      </td>
+      <td>
+        <video loop src="https://file.notion.so/f/s/52f53f77-b81a-4c05-8b77-f6e6dc468707/springconstant500.mov?id=308e3867-30dc-4d72-ac48-6cc73bc203f8&table=block&spaceId=ff67df48-404c-4889-a983-fd4c22d51181&expirationTimestamp=1681255423075&signature=XtZ9hPsQDKqaYrVeS5hKOSbbjK08L2jxcwzFg8qMxB8" align="middle" width="400px"/ autoplay muted>
+          <!-- TODO: Fuck! this is not showing -->
+        <figcaption>Spring Constant = 500 (N/m)</figcaption>
+      </td>
+  </table>
+</div>
+<h4>
+  Density
+</h4>
+<p>
+  By adjusting the density of the point mass, we can affect the behavior of the cloth during collisions. In particular, it affects how external forces modeled by Newton's Second Law (F=ma), which takes the point’s mass into account, are applied onto the cloth. From our observations, increasing the density results in a much more heavier cloth which makes stretching and folding more apparent in the simulation.
+  The left one below shows the demonstration when Density = 15 (g/cm^2), the right one is Density = 1.5 (g/cm^2).
+</p>
+<div align="middle">
+  <table style="width:100%">
+    <tr align="center">
+      <td>
+        <video loop src="https://file.notion.so/f/s/3582d334-92bd-4f8a-9c00-86d107a48daa/springconstant5000.mov?id=dcc9437a-5227-492b-bb07-9c3ac15d004c&table=block&spaceId=ff67df48-404c-4889-a983-fd4c22d51181&expirationTimestamp=1681255423075&signature=PrWnnSd8cHLcKmpVoued7UIC0wYWDZuculEG2pvV7Fk" align="middle" width="400px"/ autoplay muted>
+          <!-- TODO: Fuck! this is not showing -->
+        <figcaption>Density = 15 (g/cm^2)</figcaption>
+      </td>
+      <td>
+        <video loop src="https://file.notion.so/f/s/ca05ed1e-d80b-4c2e-aab0-d5431f0a83a6/density1.5.mov?id=4eeb7da8-b9fc-4c8d-b951-e3424bb33be8&table=block&spaceId=ff67df48-404c-4889-a983-fd4c22d51181&expirationTimestamp=1681255423075&signature=w53x5_RtnRUEdJmBjL5JQTXcSBH4eJyEqIJuZCSbxLg" align="middle" width="400px"/ autoplay muted>
+          <!-- TODO: Fuck! this is not showing -->
+        <figcaption>Density = 1.5 (g/cm^2)</figcaption>
+      </td>
+  </table>
+</div>
+<h4>
+  Damping
+</h4>
+<p>
+  Damping determines how quickly spring oscillations decay where a higher damping value is a higher loss of energy and the system reaches a stable state faster. In our experiments, 0.2% damping results in a simulation where the cloth initially bounced dramatically and small movements persist even after a long time. On the other hand, 1% damping causes the cloth to move slowly without much perturbations and reach its final resting state with a very smooth appearance.
+  The left one below shows the demonstration when Damping = 0.2%, the right one is 1%.
+</p>
+<div align="middle">
+  <table style="width:100%">
+    <tr align="center">
+      <td>
+        <video loop src="https://file.notion.so/f/s/3582d334-92bd-4f8a-9c00-86d107a48daa/springconstant5000.mov?id=6062f976-30d9-4326-a980-8f930c546e0d&table=block&spaceId=ff67df48-404c-4889-a983-fd4c22d51181&expirationTimestamp=1681255423075&signature=7yuKdZ-ARmiWcKSJE7XxDFoHMNTkwjYX1yltqzsD8DI" align="middle" width="400px"/ autoplay muted>
+          <!-- TODO: Fuck! this is not showing -->
+        <figcaption>Damping = 0.2%</figcaption>
+      </td>
+      <td>
+        <video loop src="https://file.notion.so/f/s/52f53f77-b81a-4c05-8b77-f6e6dc468707/springconstant500.mov?id=308e3867-30dc-4d72-ac48-6cc73bc203f8&table=block&spaceId=ff67df48-404c-4889-a983-fd4c22d51181&expirationTimestamp=1681255423075&signature=XtZ9hPsQDKqaYrVeS5hKOSbbjK08L2jxcwzFg8qMxB8" align="middle" width="400px"/ autoplay muted>
+          <!-- TODO: Fuck! this is not showing -->
+        <figcaption>Damping = 1%</figcaption>
+      </td>
+  </table>
+</div>
+<div align="middle">
+  <table style="width:100%">
+    <tr align="center">
+      <td>
+        <img src="https://foil-valley-a41.notion.site/image/https%3A%2F%2Fs3-us-west-2.amazonaws.com%2Fsecure.notion-static.com%2Fdcc1afe6-3503-4d63-a12b-357b3ffb5a6c%2FUntitled.png?id=b4726ec8-c626-4a5a-96b3-97a31fb2476f&table=block&spaceId=ff67df48-404c-4889-a983-fd4c22d51181&width=2000&userId=&cache=v2" align="middle" width="400px"/>
+        <figcaption>shaded cloth from scene/pinned4.json in its final resting state</figcaption>
+      </td>
+  </table>
+</div>
+<h2 align="middle">Part III: Handling collisions with other objects</h2>
+<p>
+  In this part, we enabled interactions between the cloth and primitive objects, such as spheres and planes, in our simulation. For colliding with spheres, we made sure that point masses don’t move within inside the sphere by checking their distance with the sphere’s origin. For plane intersections, we determine that the point mass crossed the plane if its last and current position is on either side of the plane. We computed a correction vector scaled by a friction factor to update the position of the point mass for both cases.
+</p>
+<div align="middle">
+  <table style="width:100%">
+    <tr align="center">
+      <td>
+        <img src="https://foil-valley-a41.notion.site/image/https%3A%2F%2Fs3-us-west-2.amazonaws.com%2Fsecure.notion-static.com%2F7162cfe8-9645-4a5a-ab8e-1a051a60fb22%2FUntitled.png?id=abab4af5-b416-4152-821b-2c0fb0a5d4ef&table=block&spaceId=ff67df48-404c-4889-a983-fd4c22d51181&width=2000&userId=&cache=v2" align="middle" width="400px"/>
+        <figcaption>Spring Constant = 50000 (N/m)</figcaption>
+      </td>
+      <td>
+        <img src="https://foil-valley-a41.notion.site/image/https%3A%2F%2Fs3-us-west-2.amazonaws.com%2Fsecure.notion-static.com%2F8ff2f57f-bb88-4419-b417-982fe54cfe4b%2FUntitled.png?id=16b21653-0ba7-4fae-b31f-97e93f883d2b&table=block&spaceId=ff67df48-404c-4889-a983-fd4c22d51181&width=2000&userId=&cache=v2" align="middle" width="400px"/>
+        <figcaption>Spring Constant = 5000 (N/m)</figcaption>
+      </td>
+      <td>
+        <img src="https://foil-valley-a41.notion.site/image/https%3A%2F%2Fs3-us-west-2.amazonaws.com%2Fsecure.notion-static.com%2F90b71ecf-7ded-41b1-9bd9-4baf4b34add0%2FUntitled.png?id=ad4ab9ef-12b5-4965-ba15-6e862d9e8773&table=block&spaceId=ff67df48-404c-4889-a983-fd4c22d51181&width=2000&userId=&cache=v2" align="middle" width="400px"/>
+        <figcaption>Spring Constant = 500 (N/m)</figcaption>
+      </td>
+  </table>
+</div>
+<div align="middle">
+  <table style="width:100%">
+    <tr align="center">
+      <td>
+        <img src="https://foil-valley-a41.notion.site/image/https%3A%2F%2Fs3-us-west-2.amazonaws.com%2Fsecure.notion-static.com%2Fb8a5c510-9f4d-4221-9b82-af53d004ef8e%2FUntitled.png?id=26d8c1c1-acd5-4f34-8ba4-c13b40234b03&table=block&spaceId=ff67df48-404c-4889-a983-fd4c22d51181&width=2000&userId=&cache=v2" align="middle" width="400px"/>
+        <figcaption>Cloth resting on a plane</figcaption>
+      </td>
+  </table>
+</div>
+<h2 align="middle">Part IV: Handling Self-Collisions</h2>
+<p>
+  In this part, we implemented the ability for the cloth to collide with itself. <br>
+  To make finding and testing self-intersections faster, we used a hash map that places masses into buckets based on their positions. First, we wrote a function to find the key a point mass should be added to, using (x*prime) + (y * pow(prime, 2)) + (z * pow(prime,3)), where a prime is a prime number chosen at random (we went with 3), and x, y, and z are the truncated coordinates from the point mass's position, scaled to the closest 3D box. Next, we added point masses to our hash map using this function.<br>
+  Then, we implemented the self_collide function that looks for collisions against a given point mass. We first created a pairwise_accum vector that accumulates the corrections (correction vectors) to the given point mass based on the other nearby masses. We made sure not to check the point mass against itself and checked whether the point mass was 2 * thickness distance away from the candidate point mass. If so, we computed a correction vector to push the current point at least a 2 * thickness distance away from the candidate, and we accumulated this correction into our pairwise_accum. If we accumulated at least one of these points, we averaged the pairwise_accum vector by dividing each component by the number of candidate points. We also divided the pairwise_accum components by the simulation_steps variable to help scale the position correction and improve the accuracy of this self-collision check.<br>
+  Finally, we updated our cloth's simulation method to check for self-collisions, similarly to how we updated it earlier to check for object collisions.
+</p>
+<div align="middle">
+  <table style="width:100%">
+    <tr align="center">
+      <td>
+        <img src="https://foil-valley-a41.notion.site/image/https%3A%2F%2Fs3-us-west-2.amazonaws.com%2Fsecure.notion-static.com%2Fb8a5c510-9f4d-4221-9b82-af53d004ef8e%2FUntitled.png?id=26d8c1c1-acd5-4f34-8ba4-c13b40234b03&table=block&spaceId=ff67df48-404c-4889-a983-fd4c22d51181&width=2000&userId=&cache=v2" align="middle" width="400px"/>
+        <figcaption>Cloth resting on a plane</figcaption>
+      </td>
+  </table>
+</div>
+<p>
+  In this section, we varied the Ks values of the cloth to observe how it affected its behavior. As before, lowering the Ks values resulted in a more elastic material, which caused the cloth to fold over itself multiple times at k = 2500 and bounce extensively before finally settling into its rest position. The cloth bounces so much that it almost completely unfolds itself before reaching its resting position. Conversely, when we increased k to 7500, the cloth became stiffer and bounced much less. It reached its rest position much quicker and did not unfold itself.
+</p>
+<div align="middle">
+  <table style="width:100%">
+    <tr align="center">
+      <td>
+        <img src="https://foil-valley-a41.notion.site/image/https%3A%2F%2Fs3-us-west-2.amazonaws.com%2Fsecure.notion-static.com%2Fb8a5c510-9f4d-4221-9b82-af53d004ef8e%2FUntitled.png?id=26d8c1c1-acd5-4f34-8ba4-c13b40234b03&table=block&spaceId=ff67df48-404c-4889-a983-fd4c22d51181&width=2000&userId=&cache=v2" align="middle" width="400px"/>
+        <figcaption>Cloth resting on a plane</figcaption>
+      </td>
+  </table>
+</div>
+<p>
+  Furthermore, we made adjustments to the density values. When the density was low, the cloth appeared almost papery and folded over itself in large, curvaceous bends. When the density was high, the cloth acted more like silk and folded over itself in numerous small folds.
+</p>
+<h2 align="middle">Part V: Shaders</h2>
+<p>
+  Shader programs in GLSL provide a cost-effective way to render realistic materials without using exhaustive ray tracing. We construct shader programs in two parts: 1) A vertex shader - which assigns vertex attributes in the scene and transforms the scene to normalized device coordinates. 2) A fragment shader - which assigns an RGB-alpha vector for each pixel in the display based on interpolated vertex data. The fragment shader manipulates data in the vertex attributes to produce various material effects. Once the pixel values corresponding to each vertex are determined, the fragment shader interpolates between them to fill in the remaining pixels. The fragment shader manipulates data in the vertex attributes to produce various material effects. <br>
+  The Blinn-Phong Shading model is widely used for rendering materials, as it considers light contributions of three different types: ambient light, diffuse light, and specular reflections. Ambient light refers to the uniform reflection of all objects in the scene, which can be considered the DC intensity. Diffuse lighting is a function of the local surface normal relative to the illumination source. This means that the surface normals pointing closer to the light source have the highest intensities. Finally, specular reflection relates the illumination source position, surface normal, and the viewing position to produce a glaring characteristic of glossy materials. We can observe these contributions separately or combine them as a weighted sum to create a final image that simulates the appearance of different materials.<br>
+</p>
+<div align="middle">
+  <table style="width:100%">
+    <tr align="center">
+      <td>
+        <img src="https://foil-valley-a41.notion.site/image/https%3A%2F%2Fs3-us-west-2.amazonaws.com%2Fsecure.notion-static.com%2Fb8a5c510-9f4d-4221-9b82-af53d004ef8e%2FUntitled.png?id=26d8c1c1-acd5-4f34-8ba4-c13b40234b03&table=block&spaceId=ff67df48-404c-4889-a983-fd4c22d51181&width=2000&userId=&cache=v2" align="middle" width="400px"/>
+        <figcaption>Cloth resting on a plane</figcaption>
+      </td>
+  </table>
+</div>
+<h4>
+  Custom Texture:
+</h4>
+<div align="middle">
+  <table style="width:100%">
+    <tr align="center">
+      <td>
+        <img src="https://foil-valley-a41.notion.site/image/https%3A%2F%2Fs3-us-west-2.amazonaws.com%2Fsecure.notion-static.com%2Fb8a5c510-9f4d-4221-9b82-af53d004ef8e%2FUntitled.png?id=26d8c1c1-acd5-4f34-8ba4-c13b40234b03&table=block&spaceId=ff67df48-404c-4889-a983-fd4c22d51181&width=2000&userId=&cache=v2" align="middle" width="400px"/>
+        <figcaption>Cloth resting on a plane</figcaption>
+      </td>
+  </table>
+</div>
+<p>
+  In this section, we will discuss bump and displacement maps and how they affect the texture of a sphere. We can see the differences in the images below. To create these images, we sampled the sphere's surface at various coordinates to create vertices. When we compare bump mapping to displacement mapping, bump mapping is better for a low sampling rate. Displacement mapping tends to produce a blocky texture because the fragment shader interpolates physical height perturbations from a relatively small number of samples. The texture may have high-frequency content that the surface displacements cannot replicate due to the low sampling rate. However, for a higher sampling rate like 128x128, displacement mapping can accurately portray the shading of the texture and the physical deformations on the sphere defined by the texture.
+</p>
+<div align="middle">
+  <table style="width:100%">
+    <tr align="center">
+      <td>
+        <img src="https://foil-valley-a41.notion.site/image/https%3A%2F%2Fs3-us-west-2.amazonaws.com%2Fsecure.notion-static.com%2Fb8a5c510-9f4d-4221-9b82-af53d004ef8e%2FUntitled.png?id=26d8c1c1-acd5-4f34-8ba4-c13b40234b03&table=block&spaceId=ff67df48-404c-4889-a983-fd4c22d51181&width=2000&userId=&cache=v2" align="middle" width="400px"/>
+        <figcaption>Cloth resting on a plane</figcaption>
+      </td>
+  </table>
+</div>
+<h4>
+  Mirror Shader
+</h4>
+<div align="middle">
+  <table style="width:100%">
+    <tr align="center">
+      <td>
+        <img src="https://foil-valley-a41.notion.site/image/https%3A%2F%2Fs3-us-west-2.amazonaws.com%2Fsecure.notion-static.com%2Fb8a5c510-9f4d-4221-9b82-af53d004ef8e%2FUntitled.png?id=26d8c1c1-acd5-4f34-8ba4-c13b40234b03&table=block&spaceId=ff67df48-404c-4889-a983-fd4c22d51181&width=2000&userId=&cache=v2" align="middle" width="400px"/>
+        <figcaption>Cloth resting on a plane</figcaption>
+      </td>
+  </table>
+</div>
 
 
 </body>
