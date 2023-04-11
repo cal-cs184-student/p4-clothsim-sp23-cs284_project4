@@ -11,7 +11,7 @@
     font-family: 'Open Sans', sans-serif;
     color: #121212;
   }
-  h1, h2, h3, h4 {
+  h1, h2, h3, h3 {
     font-family: 'Source Sans Pro', sans-serif;
   }
 </style>
@@ -60,11 +60,13 @@
 <p>
   We use Verlet Integration method to update the point mass’ position for each time step in the simulation. We first accumulate both external forces and spring forces applied on each point mass. External forces were calculated using F = ma while spring forces were computed using Hooke's law. We introduced the constraint that springs can only extend within 10% of their rest length while modeling energy dissipation with a damping factor to maintain the stability of the simulation. Below, we discuss how each of parameters, spring constant, density, and damping factor affects how the cloth behaves in simulation.
 </p>
-<h4>
+<h3>
   Spring Constant
-</h4>
+</h3>
 <p>
   We can alter the stiffness of the spring by modifying the spring constant, which controls the elasticity of the spring. Higher spring constants mean that the spring, and thus the simulated cloth, is more stiff, less stretchy, has less wrinkles in its final state, and doesn’t bounce as much when colliding with other objects in the scene. All experiments are conducted in with the same gravitational field.
+</p>
+<p>
   The left one below shows the demonstration when spring constant = 5000 (N/m), the right one is 500 (N/m).
 </p>
 <div align="middle">
@@ -82,11 +84,13 @@
       </td>
   </table>
 </div>
-<h4>
+<h3>
   Density
-</h4>
+</h3>
 <p>
   By adjusting the density of the point mass, we can affect the behavior of the cloth during collisions. In particular, it affects how external forces modeled by Newton's Second Law (F=ma), which takes the point’s mass into account, are applied onto the cloth. From our observations, increasing the density results in a much more heavier cloth which makes stretching and folding more apparent in the simulation.
+</p>
+<p>
   The left one below shows the demonstration when Density = 15 (g/cm^2), the right one is Density = 1.5 (g/cm^2).
 </p>
 <div align="middle">
@@ -98,17 +102,19 @@
         <figcaption>Density = 15 (g/cm^2)</figcaption>
       </td>
       <td>
-        <video loop src="https://file.notion.so/f/s/ca05ed1e-d80b-4c2e-aab0-d5431f0a83a6/density1.5.mov?id=4eeb7da8-b9fc-4c8d-b951-e3424bb33be8&table=block&spaceId=ff67df48-404c-4889-a983-fd4c22d51181&expirationTimestamp=1681255423075&signature=w53x5_RtnRUEdJmBjL5JQTXcSBH4eJyEqIJuZCSbxLg" align="middle" width="400px"/ autoplay muted>
+        <video loop src="https://file.notion.so/f/s/ca05ed1e-d80b-4c2e-aab0-d5431f0a83a6/density1.5.mov?id=4eeb7da8-b9fc-4c8d-b951-e3424bb33be8&table=block&spaceId=ff67df48-404c-4889-a983-fd4c22d51181&expirationTimestamp=1681255423075&signature=w53x5_RtnRUEdJmBjL5JQTXcSBH3eJyEqIJuZCSbxLg" align="middle" width="400px"/ autoplay muted>
           <!-- TODO: Fuck! this is not showing -->
         <figcaption>Density = 1.5 (g/cm^2)</figcaption>
       </td>
   </table>
 </div>
-<h4>
+<h3>
   Damping
-</h4>
+</h3>
 <p>
   Damping determines how quickly spring oscillations decay where a higher damping value is a higher loss of energy and the system reaches a stable state faster. In our experiments, 0.2% damping results in a simulation where the cloth initially bounced dramatically and small movements persist even after a long time. On the other hand, 1% damping causes the cloth to move slowly without much perturbations and reach its final resting state with a very smooth appearance.
+</p>
+<p>
   The left one below shows the demonstration when Damping = 0.2%, the right one is 1%.
 </p>
 <div align="middle">
@@ -167,11 +173,15 @@
 </div>
 <h2 align="middle">Part IV: Handling Self-Collisions</h2>
 <p>
-  In this part, we implemented the ability for the cloth to collide with itself. <br>
-  To make finding and testing self-intersections faster, we used a hash map that places masses into buckets based on their positions. First, we wrote a function to find the key a point mass should be added to, using (x*prime) + (y * pow(prime, 2)) + (z * pow(prime,3)), where a prime is a prime number chosen at random (we went with 3), and x, y, and z are the truncated coordinates from the point mass's position, scaled to the closest 3D box. Next, we added point masses to our hash map using this function.<br>
-  Then, we implemented the self_collide function that looks for collisions against a given point mass. We first created a pairwise_accum vector that accumulates the corrections (correction vectors) to the given point mass based on the other nearby masses. We made sure not to check the point mass against itself and checked whether the point mass was 2 * thickness distance away from the candidate point mass. If so, we computed a correction vector to push the current point at least a 2 * thickness distance away from the candidate, and we accumulated this correction into our pairwise_accum. If we accumulated at least one of these points, we averaged the pairwise_accum vector by dividing each component by the number of candidate points. We also divided the pairwise_accum components by the simulation_steps variable to help scale the position correction and improve the accuracy of this self-collision check.<br>
-  Finally, we updated our cloth's simulation method to check for self-collisions, similarly to how we updated it earlier to check for object collisions.
+  In this part, we implemented the ability for the cloth to collide with itself.
 </p>
+<p>
+  To make finding and testing self-intersections faster, we used a hash map that places masses into buckets based on their positions. First, we wrote a function to find the key a point mass should be added to, using (x*prime) + (y * pow(prime, 2)) + (z * pow(prime,3)), where a prime is a prime number chosen at random (we went with 3), and x, y, and z are the truncated coordinates from the point mass's position, scaled to the closest 3D box. Next, we added point masses to our hash map using this function.
+</p>
+<p>
+  Then, we implemented the self_collide function that looks for collisions against a given point mass. We first created a pairwise_accum vector that accumulates the corrections (correction vectors) to the given point mass based on the other nearby masses. We made sure not to check the point mass against itself and checked whether the point mass was 2 * thickness distance away from the candidate point mass. If so, we computed a correction vector to push the current point at least a 2 * thickness distance away from the candidate, and we accumulated this correction into our pairwise_accum. If we accumulated at least one of these points, we averaged the pairwise_accum vector by dividing each component by the number of candidate points. We also divided the pairwise_accum components by the simulation_steps variable to help scale the position correction and improve the accuracy of this self-collision check.
+</p>
+<p>Finally, we updated our cloth's simulation method to check for self-collisions, similarly to how we updated it earlier to check for object collisions.</p>
 <div align="middle">
   <table style="width:100%">
     <tr align="center">
@@ -198,8 +208,10 @@
 </p>
 <h2 align="middle">Part V: Shaders</h2>
 <p>
-  Shader programs in GLSL provide a cost-effective way to render realistic materials without using exhaustive ray tracing. We construct shader programs in two parts: 1) A vertex shader - which assigns vertex attributes in the scene and transforms the scene to normalized device coordinates. 2) A fragment shader - which assigns an RGB-alpha vector for each pixel in the display based on interpolated vertex data. The fragment shader manipulates data in the vertex attributes to produce various material effects. Once the pixel values corresponding to each vertex are determined, the fragment shader interpolates between them to fill in the remaining pixels. The fragment shader manipulates data in the vertex attributes to produce various material effects. <br>
-  The Blinn-Phong Shading model is widely used for rendering materials, as it considers light contributions of three different types: ambient light, diffuse light, and specular reflections. Ambient light refers to the uniform reflection of all objects in the scene, which can be considered the DC intensity. Diffuse lighting is a function of the local surface normal relative to the illumination source. This means that the surface normals pointing closer to the light source have the highest intensities. Finally, specular reflection relates the illumination source position, surface normal, and the viewing position to produce a glaring characteristic of glossy materials. We can observe these contributions separately or combine them as a weighted sum to create a final image that simulates the appearance of different materials.<br>
+  Shader programs in GLSL provide a cost-effective way to render realistic materials without using exhaustive ray tracing. We construct shader programs in two parts: 1) A vertex shader - which assigns vertex attributes in the scene and transforms the scene to normalized device coordinates. 2) A fragment shader - which assigns an RGB-alpha vector for each pixel in the display based on interpolated vertex data. The fragment shader manipulates data in the vertex attributes to produce various material effects. Once the pixel values corresponding to each vertex are determined, the fragment shader interpolates between them to fill in the remaining pixels. The fragment shader manipulates data in the vertex attributes to produce various material effects.
+</p>
+<p>
+  The Blinn-Phong Shading model is widely used for rendering materials, as it considers light contributions of three different types: ambient light, diffuse light, and specular reflections. Ambient light refers to the uniform reflection of all objects in the scene, which can be considered the DC intensity. Diffuse lighting is a function of the local surface normal relative to the illumination source. This means that the surface normals pointing closer to the light source have the highest intensities. Finally, specular reflection relates the illumination source position, surface normal, and the viewing position to produce a glaring characteristic of glossy materials. We can observe these contributions separately or combine them as a weighted sum to create a final image that simulates the appearance of different materials.
 </p>
 <div align="middle">
   <table style="width:100%">
@@ -210,9 +222,9 @@
       </td>
   </table>
 </div>
-<h4>
+<h3>
   Custom Texture:
-</h4>
+</h3>
 <div align="middle">
   <table style="width:100%">
     <tr align="center">
@@ -234,9 +246,9 @@
       </td>
   </table>
 </div>
-<h4>
+<h3>
   Mirror Shader
-</h4>
+</h3>
 <div align="middle">
   <table style="width:100%">
     <tr align="center">
