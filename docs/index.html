@@ -173,10 +173,10 @@
 </div>
 <h2 align="middle">Part IV: Handling Self-Collisions</h2>
 <p>
-  In this part, we implemented the ability for the cloth to collide with itself.
+  we have leveraged the advantage of self-collisions occurring locally for better performance. This means that two point masses situated on opposite ends of the world environment will never collide, whereas two within a small voxel might. To implement this, we divided the 3D space into a volumetric grid and binned each point mass into one of the cells. Consequently, the self-intersection checks on the cloth only have to be performed between point masses situated within the same cell.
 </p>
 <p>
-  To make finding and testing self-intersections faster, we used a hash map that places masses into buckets based on their positions. First, we wrote a function to find the key a point mass should be added to, using (x*prime) + (y * pow(prime, 2)) + (z * pow(prime,3)), where a prime is a prime number chosen at random (we went with 3), and x, y, and z are the truncated coordinates from the point mass's position, scaled to the closest 3D box. Next, we added point masses to our hash map using this function.
+  To store all the point masses within a certain vicinity of one another, we utilized a hashmap whose keys were generated using the discrete voxel coordinates. This adaptive data structure helped us reduce collisions throughout the simulation. Ideally, we aimed to ensure that no two voxels map to the same key. For our implementation, we used the following hashing function with the integer coordinates of the voxel.
 </p>
 <p>
   Then, we implemented the self_collide function that looks for collisions against a given point mass. We first created a pairwise_accum vector that accumulates the corrections (correction vectors) to the given point mass based on the other nearby masses. We made sure not to check the point mass against itself and checked whether the point mass was 2 * thickness distance away from the candidate point mass. If so, we computed a correction vector to push the current point at least a 2 * thickness distance away from the candidate, and we accumulated this correction into our pairwise_accum. If we accumulated at least one of these points, we averaged the pairwise_accum vector by dividing each component by the number of candidate points. We also divided the pairwise_accum components by the simulation_steps variable to help scale the position correction and improve the accuracy of this self-collision check.
@@ -186,8 +186,16 @@
   <table style="width:100%">
     <tr align="center">
       <td>
-        <img src="https://foil-valley-a41.notion.site/image/https%3A%2F%2Fs3-us-west-2.amazonaws.com%2Fsecure.notion-static.com%2Fb8a5c510-9f4d-4221-9b82-af53d004ef8e%2FUntitled.png?id=26d8c1c1-acd5-4f34-8ba4-c13b40234b03&table=block&spaceId=ff67df48-404c-4889-a983-fd4c22d51181&width=2000&userId=&cache=v2" align="middle" width="400px"/>
-        <figcaption>Cloth resting on a plane</figcaption>
+        <img src="./imgs/p4/1.png" align="middle" width="400px"/>
+        <figcaption>initial image</figcaption>
+      </td>
+      <td>
+        <img src="./imgs/p4/2.png" align="middle" width="400px"/>
+        <figcaption>middle image</figcaption>
+      </td>
+      <td>
+        <img src="./imgs/p4/3.png" align="middle" width="400px"/>
+        <figcaption>resting image</figcaption>
       </td>
   </table>
 </div>
@@ -198,14 +206,70 @@
   <table style="width:100%">
     <tr align="center">
       <td>
-        <img src="https://foil-valley-a41.notion.site/image/https%3A%2F%2Fs3-us-west-2.amazonaws.com%2Fsecure.notion-static.com%2Fb8a5c510-9f4d-4221-9b82-af53d004ef8e%2FUntitled.png?id=26d8c1c1-acd5-4f34-8ba4-c13b40234b03&table=block&spaceId=ff67df48-404c-4889-a983-fd4c22d51181&width=2000&userId=&cache=v2" align="middle" width="400px"/>
-        <figcaption>Cloth resting on a plane</figcaption>
+        <img src="./imgs/p4/k2500_1.png" align="middle" width="400px"/>
+        <figcaption>k = 2500, initial image</figcaption>
       </td>
+      <td>
+        <img src="./imgs/p4/k2500_2.png" align="middle" width="400px"/>
+        <figcaption>k = 2500, middle image</figcaption>
+      </td>
+      <td>
+        <img src="./imgs/p4/k2500_3.png" align="middle" width="400px"/>
+        <figcaption>k = 2500, resting image</figcaption>
+      </td>
+    </tr>
+    <tr align="center">
+      <td>
+        <img src="./imgs/p4/k7500_1.png" align="middle" width="400px"/>
+        <figcaption>k = 7500, initial image</figcaption>
+      </td>
+      <td>
+        <img src="./imgs/p4/k7500_2.png" align="middle" width="400px"/>
+        <figcaption>k = 7500, middle image</figcaption>
+      </td>
+      <td>
+        <img src="./imgs/p4/k7500_3.png" align="middle" width="400px"/>
+        <figcaption>k = 7500, resting image</figcaption>
+      </td>
+    </tr>
   </table>
 </div>
 <p>
   Furthermore, we made adjustments to the density values. When the density was low, the cloth appeared almost papery and folded over itself in large, curvaceous bends. When the density was high, the cloth acted more like silk and folded over itself in numerous small folds.
 </p>
+<div align="middle">
+  <table style="width:100%">
+    <tr align="center">
+      <td>
+        <img src="./imgs/p4/density1_2.png" align="middle" width="400px"/>
+        <figcaption>Density = 1, initial image</figcaption>
+      </td>
+      <td>
+        <img src="./imgs/p4/density1_2.png" align="middle" width="400px"/>
+        <figcaption>Density = 1, middle image</figcaption>
+      </td>
+      <td>
+        <img src="./imgs/p4/density1_3.png" align="middle" width="400px"/>
+        <figcaption>Density = 1, resting image</figcaption>
+      </td>
+    </tr>
+    <tr align="center">
+      <td>
+        <img src="./imgs/p4/density30_2.png" align="middle" width="400px"/>
+        <figcaption>Density = 30, initial image</figcaption>
+      </td>
+      <td>
+        <img src="./imgs/p4/density30_2.png" align="middle" width="400px"/>
+        <figcaption>Density = 30, middle image</figcaption>
+      </td>
+      <td>
+        <img src="./imgs/p4/density30_3.png" align="middle" width="400px"/>
+        <figcaption>Density = 30, resting image</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
+
 <h2 align="middle">Part V: Shaders</h2>
 <p>
   Shader programs in GLSL provide a cost-effective way to render realistic materials without using exhaustive ray tracing. We construct shader programs in two parts: 1) A vertex shader - which assigns vertex attributes in the scene and transforms the scene to normalized device coordinates. 2) A fragment shader - which assigns an RGB-alpha vector for each pixel in the display based on interpolated vertex data. The fragment shader manipulates data in the vertex attributes to produce various material effects. Once the pixel values corresponding to each vertex are determined, the fragment shader interpolates between them to fill in the remaining pixels. The fragment shader manipulates data in the vertex attributes to produce various material effects.
